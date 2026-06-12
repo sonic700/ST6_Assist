@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>不知火舞 · 命中确认训练器</title>
+<style>
+  :root {
+    --bg: #14121a;
+    --panel: #1e1b28;
+    --panel2: #262236;
+    --text: #e8e4f0;
+    --dim: #8a849c;
+    --accent: #ff5c8a;      /* 舞 · 粉红 */
+    --hit: #ffb020;         /* 命中 · 橙黄 */
+    --block: #4d8dff;       /* 被防 · 蓝 */
+    --good: #3ddc84;
+    --bad: #ff4d4d;
+    --border: #36304a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    padding: 20px;
+  }
+  h1 { font-size: 20px; letter-spacing: 2px; margin-bottom: 4px; }
+  h1 .mai { color: var(--accent); }
+  .sub { color: var(--dim); font-size: 12px; margin-bottom: 16px; }
+
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab {
+    padding: 8px 22px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--panel); color: var(--dim); cursor: pointer; font-size: 14px;
+  }
+  .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: bold; }
+
+  .mode { display: none; width: 100%; max-width: 860px; }
+  .mode.active { display: block; }
+
+  /* ---------- 训练区 ---------- */
+  .stage {
+    position: relative; height: 300px; border-radius: 14px;
+    background: var(--panel); border: 1px solid var(--border);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    overflow: hidden; user-select: none; margin-bottom: 14px;
+  }
+  .stage .big {
+    font-size: 72px; font-weight: 900; letter-spacing: 8px;
+    transition: opacity .05s;
+  }
+  .stage .hint { margin-top: 14px; color: var(--dim); font-size: 14px; }
+  .stage.flash-hit   { background: #3a2c10; box-shadow: inset 0 0 80px #ffb02055; }
+  .stage.flash-block { background: #14213a; box-shadow: inset 0 0 80px #4d8dff44; }
+  .stage.flash-good  { box-shadow: inset 0 0 100px #3ddc8455; }
+  .stage.flash-bad   { box-shadow: inset 0 0 100px #ff4d4d66; }
+  .c-hit   { color: var(--hit); }
+  .c-block { color: var(--block); }
+  .c-good  { color: var(--good); }
+  .c-bad   { color: var(--bad); }
+  .c-dim   { color: var(--dim); }
+
+  .resultline { font-size: 18px; min-height: 26px; margin-top: 10px; }
+
+  /* ---------- 面板 ---------- */
+  .row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .panel {
+    flex: 1; min-width: 260px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 16px; font-size: 14px;
+  }
+  .panel h3 { font-size: 13px; color: var(--accent); margin-bottom: 10px; letter-spacing: 1px; }
+  .field { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 10px; }
+  .field label { color: var(--dim); }
+  .field input[type=range] { flex: 1; accent-color: var(--accent); }
+  .field .val { width: 70px; text-align: right; font-variant-numeric: tabular-nums; }
+  select, input[type=text] {
+    background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 8px; font-size: 13px;
+  }
+  button.btn {
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 10px 28px; font-size: 16px; font-weight: bold; cursor: pointer; letter-spacing: 2px;
+  }
+  button.btn.secondary { background: var(--panel2); color: var(--text); border: 1px solid var(--border); }
+  button.btn:active { transform: scale(.97); }
+  .btnrow { display: flex; gap: 10px; justify-content: center; margin-bottom: 14px; }
+
+  table.stats { width: 100%; border-collapse: collapse; }
+  table.stats td { padding: 4px 0; }
+  table.stats td:last-child { text-align: right; font-variant-numeric: tabular-nums; font-weight: bold; }
+
+  .log {
+    height: 120px; overflow-y: auto; background: var(--panel2); border-radius: 8px;
+    padding: 8px 10px; font-size: 12px; line-height: 1.7; font-variant-numeric: tabular-nums;
+  }
+  .toggle { display: flex; align-items: center; gap: 8px; color: var(--dim); margin-bottom: 10px; cursor: pointer; }
+  .toggle input { accent-color: var(--accent); }
+
+  /* ---------- 节拍器 ---------- */
+  .beatviz { display: flex; gap: 10px; justify-content: center; margin: 18px 0; flex-wrap: wrap; }
+  .beat {
+    width: 56px; height: 56px; border-radius: 50%; border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center; font-size: 13px;
+    color: var(--dim); background: var(--panel2); flex-direction: column;
+    font-variant-numeric: tabular-nums;
+  }
+  .beat.now { border-color: var(--accent); background: #3a2030; color: #fff; box-shadow: 0 0 18px #ff5c8a66; }
+  .beat.good { border-color: var(--good); color: var(--good); }
+  .beat.ok   { border-color: var(--hit);  color: var(--hit); }
+  .beat.bad  { border-color: var(--bad);  color: var(--bad); }
+  .beat small { font-size: 10px; }
+  .gaps { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+  .gaps input { width: 56px; text-align: center; }
+  .note { color: var(--dim); font-size: 12px; line-height: 1.8; }
+  kbd {
+    background: var(--panel2); border: 1px solid var(--border); border-bottom-width: 2px;
+    border-radius: 4px; padding: 1px 7px; font-family: inherit; font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<h1><span class="mai">不知火舞</span> · 命中确认训练器</h1>
+<div class="sub">练你的 hit-confirm —— 看到命中才按,被防住就忍住 | 60帧 = 1秒,1帧 ≈ 16.7ms</div>
+
+<div class="tabs">
+  <div class="tab active" data-mode="confirm">确认反应训练</div>
+  <div class="tab" data-mode="rhythm">连段节拍器</div>
+</div>
+
+<!-- ===================== 模式一:确认反应 ===================== -->
+<div class="mode active" id="mode-confirm">
+  <div class="stage" id="cStage">
+    <div class="big c-dim" id="cBig">待机</div>
+    <div class="hint" id="cHint">点「开始」或按 <b>回车</b> 开始 · 出现 <b class="c-hit">命中!</b> 时按 <kbd id="cKeyLabel">J</kbd>,出现 <b class="c-block">被防</b> 时什么都别按</div>
+    <div class="resultline" id="cResult"></div>
+  </div>
+
+  <div class="btnrow">
+    <button class="btn" id="cStart">开 始</button>
+    <button class="btn secondary" id="cStop">停 止</button>
+    <button class="btn secondary" id="cReset">清空统计</button>
+  </div>
+
+  <div class="row">
+    <div class="panel">
+      <h3>设 置</h3>
+      <div class="field">
+        <label>确认窗口(帧)</label>
+        <input type="range" id="cWindow" min="10" max="40" value="25">
+        <span class="val" id="cWindowVal">25F</span>
+      </div>
+      <div class="field">
+        <label>命中概率</label>
+        <input type="range" id="cHitRate" min="20" max="80" value="50">
+        <span class="val" id="cHitRateVal">50%</span>
+      </div>
+      <div class="field">
+        <label>确认按键</label>
+        <select id="cKey">
+          <option value="j" selected>J</option>
+          <option value=" ">空格</option>
+          <option value="k">K</option>
+          <option value="f">F</option>
+        </select>
+      </div>
+      <label class="toggle"><input type="checkbox" id="cSound" checked> 声音提示(命中/被防音效不同,贴近实战)</label>
+      <label class="toggle"><input type="checkbox" id="cAuto" checked> 自动连续出题</label>
+      <div class="note">建议从 25F 起步,稳定 90% 后逐步压到 18F。<br>人类纯视觉反应约 15F,所以实战确认靠的是「预读 + 多段缓冲」,窗口压得越小越接近单发确认极限。</div>
+    </div>
+
+    <div class="panel">
+      <h3>统 计</h3>
+      <table class="stats">
+        <tr><td>总次数</td><td id="sTotal">0</td></tr>
+        <tr><td class="c-good">确认成功(命中且按对)</td><td id="sGood">0</td></tr>
+        <tr><td class="c-bad">确认太慢(命中没接上)</td><td id="sSlow">0</td></tr>
+        <tr><td class="c-bad">误确认(被防还按)</td><td id="sFalse">0</td></tr>
+        <tr><td class="c-good">成功忍住(被防没按)</td><td id="sHold">0</td></tr>
+        <tr><td class="c-bad">抢按(还没出结果就按)</td><td id="sMash">0</td></tr>
+        <tr><td>平均确认速度</td><td id="sAvg">--</td></tr>
+        <tr><td>最快一次</td><td id="sBest">--</td></tr>
+        <tr><td>综合正确率</td><td id="sRate">--</td></tr>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h3>记 录</h3>
+      <div class="log" id="cLog"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 模式二:连段节拍器 ===================== -->
+<div class="mode" id="mode-rhythm">
+  <div class="stage" style="height:auto; padding:24px 16px;">
+    <div class="big" id="rBig" style="font-size:48px;">节拍器</div>
+    <div class="beatviz" id="rViz"></div>
+    <div class="hint">预备 4 拍后开始 · 每个拍点按 <kbd id="rKeyLabel">J</kbd> · 圆圈下方显示你的偏差(帧)</div>
+    <div class="resultline" id="rResult"></div>
+  </div>
+
+  <div class="btnrow">
+    <button class="btn" id="rStart">开 始</button>
+    <button class="btn secondary" id="rStop">停 止</button>
+  </div>
+
+  <div class="row">
+    <div class="panel">
+      <h3>节奏设置(单位:帧)</h3>
+      <div class="field">
+        <label>预设</label>
+        <select id="rPreset">
+          <option value="20,20">三连击 · 均匀 20F</option>
+          <option value="18,24">目标连段→取消 (18F, 24F)</option>
+          <option value="16,16,28">三段→绿冲衔接 (16,16,28)</option>
+          <option value="22">二连确认 (22F)</option>
+          <option value="custom">自定义</option>
+        </select>
+      </div>
+      <div class="gaps" id="rGaps"></div>
+      <div class="field">
+        <label>判定:好 ±</label>
+        <input type="range" id="rGoodWin" min="1" max="6" value="3">
+        <span class="val" id="rGoodWinVal">3F</span>
+      </div>
+      <label class="toggle"><input type="checkbox" id="rLoop" checked> 循环练习</label>
+      <div class="note">间隔代表「上一击到下一次按键」的帧数。游戏里每招的取消时机不同——开训练模式实测手感后,把间隔调到和你的连段一致再练。预设数值只是起点,不是官方帧数。</div>
+    </div>
+
+    <div class="panel">
+      <h3>统 计</h3>
+      <table class="stats">
+        <tr><td>完成轮数</td><td id="rRounds">0</td></tr>
+        <tr><td class="c-good">好(±判定内)</td><td id="rGood">0</td></tr>
+        <tr><td class="c-hit">可以(±6F内)</td><td id="rOk">0</td></tr>
+        <tr><td class="c-bad">脱拍</td><td id="rBad">0</td></tr>
+        <tr><td>平均偏差</td><td id="rAvg">--</td></tr>
+      </table>
+      <div style="margin-top:10px" class="note">偏差为正 = 按晚了,为负 = 按早了。连段掉招大多是「按早被吞」,先把负偏差练没。</div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const F = 1000 / 60; // 一帧的毫秒数
+const $ = id => document.getElementById(id);
+
+/* ---------- 音效 ---------- */
+let actx = null;
+function beep(freq, dur = 0.07, type = "square", gain = 0.18) {
+  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(gain, actx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
+  o.connect(g); g.connect(actx.destination);
+  o.start(); o.stop(actx.currentTime + dur);
+}
+const sndHit   = () => { beep(880, .09, "square");  beep(1320, .06, "square", .1); }; // 清脆 = 命中
+const sndBlock = () => beep(180, .12, "sawtooth", .15);                              // 闷响 = 被防
+const sndGood  = () => beep(1568, .08, "sine", .2);
+const sndBad   = () => beep(120, .2, "sawtooth", .2);
+const sndTick  = () => beep(660, .04, "square", .12);
+const sndAccent= () => beep(990, .05, "square", .16);
+
+/* ---------- 标签页 ---------- */
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+  document.querySelectorAll(".mode").forEach(x => x.classList.remove("active"));
+  t.classList.add("active");
+  $("mode-" + t.dataset.mode).classList.add("active");
+  stopConfirm(); stopRhythm();
+});
+
+/* ===================== 模式一:确认反应 ===================== */
+const cState = { running: false, phase: "idle", revealAt: 0, isHit: false, timers: [] };
+const stats = { total:0, good:0, slow:0, false_:0, hold:0, mash:0, times:[] };
+
+const cBig = $("cBig"), cStage = $("cStage"), cHint = $("cHint"), cResult = $("cResult");
+
+$("cWindow").oninput  = e => $("cWindowVal").textContent  = e.target.value + "F";
+$("cHitRate").oninput = e => $("cHitRateVal").textContent = e.target.value + "%";
+$("cKey").onchange = e => $("cKeyLabel").textContent = e.target.value === " " ? "空格" : e.target.value.toUpperCase();
+
+function clearTimers() { cState.timers.forEach(clearTimeout); cState.timers = []; }
+function setStage(cls) {
+  cStage.className = "stage" + (cls ? " " + cls : "");
+}
+function showBig(text, cls) { cBig.textContent = text; cBig.className = "big " + (cls || ""); }
+
+function startConfirm() {
+  if (cState.running) return;
+  cState.running = true;
+  cResult.textContent = "";
+  nextTrial();
+}
+function stopConfirm() {
+  cState.running = false; cState.phase = "idle";
+  clearTimers(); setStage("");
+  showBig("待机", "c-dim");
+}
+function nextTrial() {
+  if (!cState.running) return;
+  clearTimers(); setStage("");
+  cState.phase = "waiting";
+  showBig("出招…", "c-dim");
+  cResult.textContent = "";
+  const delay = 700 + Math.random() * 1400; // 随机延迟,防预判
+  cState.timers.push(setTimeout(reveal, delay));
+}
+function reveal() {
+  if (!cState.running) return;
+  cState.isHit = Math.random() * 100 < +$("cHitRate").value;
+  cState.phase = "revealed";
+  cState.revealAt = performance.now();
+  if (cState.isHit) {
+    showBig("命中!", "c-hit"); setStage("flash-hit");
+    if ($("cSound").checked) sndHit();
+  } else {
+    showBig("被防", "c-block"); setStage("flash-block");
+    if ($("cSound").checked) sndBlock();
+  }
+  const windowMs = +$("cWindow").value * F;
+  cState.timers.push(setTimeout(() => judge(null), windowMs + 120)); // 超时判定(被防多给点缓冲)
+}
+function judge(pressTime) {
+  if (cState.phase !== "revealed") return;
+  cState.phase = "result";
+  clearTimers();
+  const windowMs = +$("cWindow").value * F;
+  stats.total++;
+  let line = "", cls = "";
+
+  if (cState.isHit) {
+    if (pressTime === null) {
+      stats.slow++;
+      line = `命中但没接上 —— 确认太慢(窗口 ${$("cWindow").value}F)`; cls = "c-bad";
+      setStage("flash-bad"); if ($("cSound").checked) sndBad();
+    } else {
+      const ms = pressTime - cState.revealAt;
+      const frames = ms / F;
+      if (ms <= windowMs) {
+        stats.good++; stats.times.push(frames);
+        line = `确认成功!${frames.toFixed(1)}F (${ms.toFixed(0)}ms) → 接绿冲连段!`; cls = "c-good";
+        setStage("flash-good"); if ($("cSound").checked) sndGood();
+      } else {
+        stats.slow++;
+        line = `按了但超窗:${frames.toFixed(1)}F > ${$("cWindow").value}F`; cls = "c-bad";
+        setStage("flash-bad"); if ($("cSound").checked) sndBad();
+      }
+    }
+  } else {
+    if (pressTime === null) {
+      stats.hold++;
+      line = "成功忍住 —— 被防不乱按,安全。"; cls = "c-good";
+      setStage("flash-good");
+    } else {
+      stats.false_++;
+      line = "误确认!被防了还按 —— 实战会被反击。"; cls = "c-bad";
+      setStage("flash-bad"); if ($("cSound").checked) sndBad();
+    }
+  }
+  cResult.innerHTML = `<span class="${cls}">${line}</span>`;
+  log(line, cls);
+  renderStats();
+  if ($("cAuto").checked && cState.running) {
+    cState.timers.push(setTimeout(nextTrial, 900));
+  } else {
+    cState.phase = "idle";
+  }
+}
+function log(text, cls) {
+  const d = document.createElement("div");
+  d.className = cls; d.textContent = `#${stats.total} ${text}`;
+  $("cLog").prepend(d);
+}
+function renderStats() {
+  $("sTotal").textContent = stats.total;
+  $("sGood").textContent = stats.good;
+  $("sSlow").textContent = stats.slow;
+  $("sFalse").textContent = stats.false_;
+  $("sHold").textContent = stats.hold;
+  $("sMash").textContent = stats.mash;
+  if (stats.times.length) {
+    const avg = stats.times.reduce((a,b)=>a+b,0) / stats.times.length;
+    $("sAvg").textContent = avg.toFixed(1) + "F";
+    $("sBest").textContent = Math.min(...stats.times).toFixed(1) + "F";
+  } else { $("sAvg").textContent = "--"; $("sBest").textContent = "--"; }
+  const correct = stats.good + stats.hold;
+  $("sRate").textContent = stats.total ? (100 * correct / stats.total).toFixed(0) + "%" : "--";
+}
+$("cStart").onclick = startConfirm;
+$("cStop").onclick = stopConfirm;
+$("cReset").onclick = () => {
+  Object.assign(stats, { total:0, good:0, slow:0, false_:0, hold:0, mash:0 });
+  stats.times = []; $("cLog").innerHTML = ""; renderStats();
+};
+
+/* ===================== 模式二:节拍器 ===================== */
+const rState = { running: false, beats: [], idx: -1, timers: [], stats: { rounds:0, good:0, ok:0, bad:0, offs:[] } };
+const rViz = $("rViz"), rBig = $("rBig");
+
+$("rGoodWin").oninput = e => $("rGoodWinVal").textContent = e.target.value + "F";
+
+function currentGaps() {
+  return [...document.querySelectorAll("#rGaps input")].map(i => Math.max(8, Math.min(60, +i.value || 20)));
+}
+function renderGapInputs(gaps) {
+  const box = $("rGaps");
+  box.innerHTML = "";
+  gaps.forEach((g, i) => {
+    const inp = document.createElement("input");
+    inp.type = "text"; inp.value = g;
+    box.appendChild(document.createTextNode((i === 0 ? "首击 → " : "→ ")));
+    box.appendChild(inp);
+    box.appendChild(document.createTextNode("F "));
+  });
+  const add = document.createElement("button");
+  add.textContent = "+"; add.className = "btn secondary"; add.style.padding = "2px 10px";
+  add.onclick = () => { renderGapInputs([...currentGaps(), 20]); $("rPreset").value = "custom"; };
+  const del = document.createElement("button");
+  del.textContent = "−"; del.className = "btn secondary"; del.style.padding = "2px 10px";
+  del.onclick = () => { const g = currentGaps(); if (g.length > 1) { g.pop(); renderGapInputs(g); $("rPreset").value = "custom"; } };
+  box.appendChild(add); box.appendChild(del);
+}
+$("rPreset").onchange = e => {
+  if (e.target.value !== "custom") renderGapInputs(e.target.value.split(",").map(Number));
+};
+renderGapInputs([20, 20]);
+
+function buildViz(n) {
+  rViz.innerHTML = "";
+  for (let i = 0; i <= n; i++) {
+    const b = document.createElement("div");
+    b.className = "beat"; b.id = "beat" + i;
+    b.innerHTML = `<div>${i === 0 ? "首击" : i}</div><small></small>`;
+    rViz.appendChild(b);
+  }
+}
+function startRhythm() {
+  if (rState.running) return;
+  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  rState.running = true;
+  const gaps = currentGaps();
+  buildViz(gaps.length);
+  $("rResult").textContent = "";
+  // 预备 4 拍(每拍 30F),然后首击,再按 gaps 排拍点
+  const lead = 4, leadGap = 30 * F;
+  const t0 = performance.now() + 500;
+  rState.beats = [];
+  let t = t0 + lead * leadGap;
+  rState.beats.push({ time: t, hit: null });           // 首击
+  for (const g of gaps) { t += g * F; rState.beats.push({ time: t, hit: null }); }
+  rBig.textContent = "预备…";
+  for (let i = 0; i < lead; i++) {
+    rState.timers.push(setTimeout(() => { sndTick(); rBig.textContent = (lead - i); }, (t0 + i * leadGap) - performance.now()));
+  }
+  rState.beats.forEach((b, i) => {
+    rState.timers.push(setTimeout(() => {
+      sndAccent();
+      rBig.textContent = i === 0 ? "首击!" : "接!";
+      document.querySelectorAll(".beat").forEach(x => x.classList.remove("now"));
+      const el = $("beat" + i); if (el) el.classList.add("now");
+      rState.idx = i;
+    }, b.time - performance.now()));
+  });
+  // 结束判定
+  const endTime = rState.beats[rState.beats.length - 1].time + 500;
+  rState.timers.push(setTimeout(finishRound, endTime - performance.now()));
+}
+function finishRound() {
+  if (!rState.running) return;
+  rState.stats.rounds++;
+  let missed = 0;
+  rState.beats.forEach((b, i) => {
+    if (b.hit === null) {
+      missed++; rState.stats.bad++;
+      const el = $("beat" + i);
+      if (el) { el.classList.add("bad"); el.querySelector("small").textContent = "漏"; }
+    }
+  });
+  renderRStats();
+  $("rResult").innerHTML = missed === 0
+    ? '<span class="c-good">整套打完!</span>'
+    : `<span class="c-bad">漏了 ${missed} 拍</span>`;
+  if ($("rLoop").checked) {
+    rState.timers.push(setTimeout(() => { if (rState.running) { clearRTimers(); startRound(); } }, 1200));
+  } else stopRhythm();
+}
+function startRound() { rState.running = false; startRhythm(); }
+function clearRTimers() { rState.timers.forEach(clearTimeout); rState.timers = []; }
+function stopRhythm() {
+  rState.running = false; rState.idx = -1;
+  clearRTimers();
+  rBig.textContent = "节拍器";
+  document.querySelectorAll(".beat").forEach(x => x.classList.remove("now"));
+}
+function rhythmPress(now) {
+  // 找最近且未判定的拍点
+  let best = -1, bestDist = Infinity;
+  rState.beats.forEach((b, i) => {
+    if (b.hit !== null) return;
+    const d = Math.abs(now - b.time);
+    if (d < bestDist) { bestDist = d; best = i; }
+  });
+  if (best < 0) return;
+  const b = rState.beats[best];
+  const offF = (now - b.time) / F;
+  if (Math.abs(offF) > 12) { sndBad(); return; } // 离谱的按键忽略拍点占用,但提示
+  b.hit = offF;
+  rState.stats.offs.push(offF);
+  const goodWin = +$("rGoodWin").value;
+  const el = $("beat" + best);
+  let cls, label;
+  if (Math.abs(offF) <= goodWin) { cls = "good"; label = "好"; rState.stats.good++; sndGood(); }
+  else if (Math.abs(offF) <= 6)  { cls = "ok";   label = offF > 0 ? "晚" : "早"; rState.stats.ok++; }
+  else                            { cls = "bad";  label = offF > 0 ? "太晚" : "太早"; rState.stats.bad++; sndBad(); }
+  if (el) {
+    el.classList.remove("now"); el.classList.add(cls);
+    el.querySelector("small").textContent = (offF > 0 ? "+" : "") + offF.toFixed(1) + "F " + label;
+  }
+  renderRStats();
+}
+function renderRStats() {
+  const s = rState.stats;
+  $("rRounds").textContent = s.rounds;
+  $("rGood").textContent = s.good;
+  $("rOk").textContent = s.ok;
+  $("rBad").textContent = s.bad;
+  if (s.offs.length) {
+    const avg = s.offs.reduce((a,b)=>a+b,0) / s.offs.length;
+    $("rAvg").textContent = (avg > 0 ? "+" : "") + avg.toFixed(1) + "F";
+  }
+}
+$("rStart").onclick = () => { stopRhythm(); rState.running = false; startRhythm(); };
+$("rStop").onclick = stopRhythm;
+
+/* ===================== 全局按键 ===================== */
+document.addEventListener("keydown", e => {
+  if (e.repeat) return;
+  const now = performance.now();
+  const confirmKey = $("cKey").value;
+  const inConfirm = $("mode-confirm").classList.contains("active");
+  const inRhythm = $("mode-rhythm").classList.contains("active");
+
+  if (e.key === "Enter") {
+    if (inConfirm && !cState.running) { startConfirm(); e.preventDefault(); }
+    return;
+  }
+  if (e.key.toLowerCase() === confirmKey || (confirmKey === " " && e.key === " ")) {
+    if (e.key === " ") e.preventDefault();
+    if (inConfirm && cState.running) {
+      if (cState.phase === "waiting") {
+        stats.total++; stats.mash++;
+        cResult.innerHTML = '<span class="c-bad">抢按!结果还没出就按了 —— 这就是乱按的肌肉记忆。</span>';
+        log("抢按(结果未出)", "c-bad");
+        renderStats(); setStage("flash-bad");
+        if ($("cSound").checked) sndBad();
+        clearTimers(); cState.phase = "idle";
+        if ($("cAuto").checked) cState.timers.push(setTimeout(nextTrial, 900));
+      } else if (cState.phase === "revealed") {
+        judge(now);
+      }
+    }
+    if (inRhythm && rState.running && rState.beats.length) rhythmPress(now);
+  }
+});
+</script>
+</body>
+</html>

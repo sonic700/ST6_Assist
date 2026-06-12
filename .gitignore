@@ -1,0 +1,22 @@
+# 运行时产物
+__pycache__/
+*.pyc
+*.log
+diag.txt
+
+# PyInstaller 打包产物
+build/
+dist/
+*.spec
+
+# 人物检测模型(build_exe.py 会自动下载)
+*.onnx
+
+# 校准用截图
+screenshot_full.png
+region_crop.png
+region_p1_bar.png
+region_p2_bar.png
+
+# Claude Code 本地配置
+.claude/

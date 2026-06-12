@@ -1,0 +1,44 @@
+{
+  "_说明_side": "我是哪边: 1P(左) 或 2P(右)。界面里可以直接切,这里只是默认值。",
+  "side": "1P",
+
+  "_说明_attack_triggers": "起手输入组合:整组同时按下的瞬间开始等命中。方向(up/down/left/right)同时认十字键和左摇杆;扳机 lt/rt;按键 a b x y lb rb。",
+  "attack_triggers": [["down", "a"], ["rt", "b"]],
+
+  "_说明_confirm_window_frames": "按出起手后等掉血的窗口(帧)。窗口内掉血=命中,过了没掉=被防/挥空。起手招出招慢就加大。",
+  "confirm_window_frames": 45,
+
+  "_说明_cooldown_frames": "命中触发后的冷却(帧),期间不再触发。默认 300 帧 = 5 秒,留给接连段。",
+  "cooldown_frames": 300,
+
+  "_说明_trigger_mode": "pad=按出起手组合才检测(推荐); always=常开检测(手柄不可用时自动回退)。",
+  "trigger_mode": "pad",
+
+  "_说明_pad_hotkeys": "手柄热键: 按住 View(视图键) 再按 A=采基线, B=启停检测。不想要就改 false。",
+  "pad_hotkeys": true,
+
+  "_说明_region": "两个检测区域(屏幕像素坐标)。region_p2_bar=2P血条掉血端(我是1P时监控它), region_p1_bar=1P血条掉血端(我是2P时监控它)。用 --snap 截全屏找坐标, --crop 验证。下面是 1920x1080 参考值,务必自己校准!",
+  "region_p2_bar": { "left": 1060, "top": 52, "width": 180, "height": 22 },
+  "region_p1_bar": { "left": 680, "top": 52, "width": 180, "height": 22 },
+
+  "_说明_threshold": "触发阈值。界面上看实时像素差:打中一下记峰值,被防一下记峰值,取中间。界面里调好后点「保存设置」。",
+  "threshold": 10.0,
+
+  "_说明_fps": "检测频率(每秒采样次数),120 足够,延迟约 1 帧。",
+  "fps": 120,
+
+  "_说明_window_process": "只有前台窗口的进程名等于它(或标题包含 window_title)才会触发,防止切出游戏误响。两项都留空 \"\" 则不检查。",
+  "window_process": "StreetFighter6.exe",
+  "window_title": "Street Fighter 6",
+
+  "sound": { "freq": 1400, "ms": 90 },
+
+  "_说明_auto_dash": "true=命中后自动模拟绿冲(需 ViGEmBus 驱动 + 游戏里 P1 绑虚拟手柄)。界面里可随时切。",
+  "auto_dash": false,
+
+  "_说明_combo": "auto_dash 注入的序列,默认 前前=绿冲。可扩展成整套连段:press 可用 a b x y lb rb lt rt dpad_* forward back;hold=按住几帧,wait=松开后等几帧。",
+  "combo": [
+    { "press": ["forward"], "hold": 2, "wait": 2 },
+    { "press": ["forward"], "hold": 3, "wait": 0 }
+  ]
+}
